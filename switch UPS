@@ -2,7 +2,7 @@
 const int onSwitchPin = 2;   // ON Switch
 const int offSwitchPin = 3;  // OFF Switch
 const int pageSwitchPin = 4; // Page Counter Switch
-const int modeSwitchPin = 5; // Mode Selection Switch
+const int bypassSwitchPin = 5; // Bypass Switch
 const int ledPin = 13;       // LED Pin
 
 // Debounce Timing
@@ -18,7 +18,7 @@ void setup() {
     pinMode(onSwitchPin, INPUT_PULLUP);
     pinMode(offSwitchPin, INPUT_PULLUP);
     pinMode(pageSwitchPin, INPUT_PULLUP);
-    pinMode(modeSwitchPin, INPUT_PULLUP);
+    pinMode(bypassSwitchPin, INPUT_PULLUP);
     pinMode(ledPin, OUTPUT);
     digitalWrite(ledPin, LOW); // LED OFF initially
     Serial.begin(9600);
@@ -29,12 +29,14 @@ void loop() {
     bool onSwitchState = digitalRead(onSwitchPin);
     bool offSwitchState = digitalRead(offSwitchPin);
     bool pageSwitchState = digitalRead(pageSwitchPin);
-    bool modeSwitchState = digitalRead(modeSwitchPin);
+    bool bypassSwitchState = digitalRead(bypassSwitchPin);
 
     // Pass states to respective functions
     onOff(onSwitchState, offSwitchState);
-    pageCounter(pageSwitchState);
-    modeSelection(modeSwitchState);
+    int currentPage = pageCounter(pageSwitchState);
+    Serial.print("Current Page: ");
+    Serial.println(currentPage);
+    bypass(bypassSwitchState);
 }
 
 // Function to handle LED ON/OFF with long and short press
@@ -52,8 +54,8 @@ void onOff(bool onState, bool offState) {
         }
         if (onState == HIGH && buttonState[0] == LOW) {
             if ((millis() - buttonPressTime) > longPressDuration) {
-                ledState = false; // Long press: Turn LED ON
-                Serial.println("Long Press: LED ON");/////////CHECK THIS
+                ledState = true; // Long press: Turn LED ON
+                Serial.println("Long Press: LED ON");
             } else {
                 ledState = true; // Short press: Turn LED ON
                 Serial.println("Short Press: LED ON");
@@ -79,8 +81,8 @@ void onOff(bool onState, bool offState) {
     digitalWrite(ledPin, ledState ? HIGH : LOW);
 }
 
-// Function to handle page counter
-void pageCounter(bool pageState) {
+// Function to handle page counter with return type
+int pageCounter(bool pageState) {
     static int pageNumber = 0;
     if (pageState != lastButtonState[2]) {
         lastDebounceTime[2] = millis();
@@ -88,32 +90,25 @@ void pageCounter(bool pageState) {
     if ((millis() - lastDebounceTime[2]) > debounceDelay) {
         if (pageState == LOW && buttonState[2] == HIGH) {
             pageNumber = (pageNumber + 1) % 10;
-            Serial.print("Current Page: ");
-            Serial.println(pageNumber);
         }
         buttonState[2] = pageState;
     }
     lastButtonState[2] = pageState;
+    return pageNumber;
 }
 
-// Function to handle mode selection
-void modeSelection(bool modeState) {
-    static int modeFlag = 0;
-    if (modeState != lastButtonState[3]) {
+// Function to handle bypass mode with two states: Enable and Disable
+void bypass(bool bypassState) {
+    static bool bypassEnabled = false;
+    if (bypassState != lastButtonState[3]) {
         lastDebounceTime[3] = millis();
     }
     if ((millis() - lastDebounceTime[3]) > debounceDelay) {
-        if (modeState == LOW && buttonState[3] == HIGH) {
-            modeFlag = (modeFlag + 1) % 3;
-            Serial.print("Mode Changed to: ");
-            switch (modeFlag) {
-                case 0: Serial.println("Auto Mode"); break;
-                case 1: Serial.println("Manual Mode"); break;
-                case 2: Serial.println("Bypass Mode"); break;
-            }
+        if (bypassState == LOW && buttonState[3] == HIGH) {
+            bypassEnabled = !bypassEnabled;
+            Serial.println(bypassEnabled ? "Bypass Enabled" : "Bypass Disabled");
         }
-        buttonState[3] = modeState;
+        buttonState[3] = bypassState;
     }
-    lastButtonState[3] = modeState;
+    lastButtonState[3] = bypassState;
 }
-
