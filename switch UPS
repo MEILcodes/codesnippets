@@ -1,0 +1,119 @@
+// Pin Definitions
+const int onSwitchPin = 2;   // ON Switch
+const int offSwitchPin = 3;  // OFF Switch
+const int pageSwitchPin = 4; // Page Counter Switch
+const int modeSwitchPin = 5; // Mode Selection Switch
+const int ledPin = 13;       // LED Pin
+
+// Debounce Timing
+const unsigned long debounceDelay = 50;   // Debounce time in milliseconds
+const unsigned long longPressDuration = 1000; // Long press duration (1 second)
+
+// State Variables
+bool lastButtonState[4] = {HIGH, HIGH, HIGH, HIGH};
+bool buttonState[4] = {HIGH, HIGH, HIGH, HIGH};
+unsigned long lastDebounceTime[4] = {0, 0, 0, 0};
+
+void setup() {
+    pinMode(onSwitchPin, INPUT_PULLUP);
+    pinMode(offSwitchPin, INPUT_PULLUP);
+    pinMode(pageSwitchPin, INPUT_PULLUP);
+    pinMode(modeSwitchPin, INPUT_PULLUP);
+    pinMode(ledPin, OUTPUT);
+    digitalWrite(ledPin, LOW); // LED OFF initially
+    Serial.begin(9600);
+}
+
+void loop() {
+    // Read all switch states
+    bool onSwitchState = digitalRead(onSwitchPin);
+    bool offSwitchState = digitalRead(offSwitchPin);
+    bool pageSwitchState = digitalRead(pageSwitchPin);
+    bool modeSwitchState = digitalRead(modeSwitchPin);
+
+    // Pass states to respective functions
+    onOff(onSwitchState, offSwitchState);
+    pageCounter(pageSwitchState);
+    modeSelection(modeSwitchState);
+}
+
+// Function to handle LED ON/OFF with long and short press
+void onOff(bool onState, bool offState) {
+    static bool ledState = false;
+    static unsigned long buttonPressTime = 0;
+
+    // Debounce ON Switch
+    if (onState != lastButtonState[0]) {
+        lastDebounceTime[0] = millis();
+    }
+    if ((millis() - lastDebounceTime[0]) > debounceDelay) {
+        if (onState == LOW && buttonState[0] == HIGH) {
+            buttonPressTime = millis();
+        }
+        if (onState == HIGH && buttonState[0] == LOW) {
+            if ((millis() - buttonPressTime) > longPressDuration) {
+                ledState = false; // Long press: Turn LED ON
+                Serial.println("Long Press: LED ON");/////////CHECK THIS
+            } else {
+                ledState = true; // Short press: Turn LED ON
+                Serial.println("Short Press: LED ON");
+            }
+        }
+        buttonState[0] = onState;
+    }
+    lastButtonState[0] = onState;
+
+    // Debounce OFF Switch
+    if (offState != lastButtonState[1]) {
+        lastDebounceTime[1] = millis();
+    }
+    if ((millis() - lastDebounceTime[1]) > debounceDelay) {
+        if (offState == LOW && buttonState[1] == HIGH) {
+            ledState = false; // OFF Button: Immediately Turn LED OFF
+            Serial.println("LED OFF via OFF Button");
+        }
+        buttonState[1] = offState;
+    }
+    lastButtonState[1] = offState;
+
+    digitalWrite(ledPin, ledState ? HIGH : LOW);
+}
+
+// Function to handle page counter
+void pageCounter(bool pageState) {
+    static int pageNumber = 0;
+    if (pageState != lastButtonState[2]) {
+        lastDebounceTime[2] = millis();
+    }
+    if ((millis() - lastDebounceTime[2]) > debounceDelay) {
+        if (pageState == LOW && buttonState[2] == HIGH) {
+            pageNumber = (pageNumber + 1) % 10;
+            Serial.print("Current Page: ");
+            Serial.println(pageNumber);
+        }
+        buttonState[2] = pageState;
+    }
+    lastButtonState[2] = pageState;
+}
+
+// Function to handle mode selection
+void modeSelection(bool modeState) {
+    static int modeFlag = 0;
+    if (modeState != lastButtonState[3]) {
+        lastDebounceTime[3] = millis();
+    }
+    if ((millis() - lastDebounceTime[3]) > debounceDelay) {
+        if (modeState == LOW && buttonState[3] == HIGH) {
+            modeFlag = (modeFlag + 1) % 3;
+            Serial.print("Mode Changed to: ");
+            switch (modeFlag) {
+                case 0: Serial.println("Auto Mode"); break;
+                case 1: Serial.println("Manual Mode"); break;
+                case 2: Serial.println("Bypass Mode"); break;
+            }
+        }
+        buttonState[3] = modeState;
+    }
+    lastButtonState[3] = modeState;
+}
+
