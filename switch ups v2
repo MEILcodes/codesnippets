@@ -1,0 +1,91 @@
+// Pin Definitions
+const int SW1 = 2;
+const int SW2= 3;
+const int SW3 = 4;
+const int SW4 = 5;
+const int ledPin = 13;
+
+// Debounce Timing
+const unsigned long debounceDelay = 50;
+
+// State Variables for 4 Buttons
+bool lastButtonState[4] = {HIGH, HIGH, HIGH, HIGH};
+bool buttonState[4] = {HIGH, HIGH, HIGH, HIGH};
+unsigned long lastDebounceTime[4] = {0, 0, 0, 0};
+
+// Setup Function
+void setup() {
+    pinMode(SW1, INPUT_PULLUP);
+    pinMode(SW2, INPUT_PULLUP);
+    pinMode(SW3, INPUT_PULLUP);
+    pinMode(SW4, INPUT_PULLUP);
+    pinMode(ledPin, OUTPUT);
+    digitalWrite(ledPin, LOW);
+    Serial.begin(9600);
+}
+
+void loop() {
+    // Using generalized function for all buttons
+    bool onPressed = handleButton(0, SW1);
+    bool offPressed = handleButton(1, SW2);
+    static int Counter = 0;
+    handleCounterButton(2, SW3, Counter);
+    bool bypassToggled = handleButton(3, SW4);
+
+    // Actions based on button states
+    if (onPressed) {
+        Serial.println("ON Button Pressed");
+        digitalWrite(ledPin, HIGH);
+    }
+    if (offPressed) {
+        Serial.println("OFF Button Pressed");
+        digitalWrite(ledPin, LOW);
+    }
+    Serial.print("Current Page: ");
+    Serial.println(Counter);
+    if (bypassToggled) {
+        static bool bypassEnabled = false;
+        bypassEnabled = !bypassEnabled;
+        Serial.println(bypassEnabled ? "Bypass Enabled" : "Bypass Disabled");
+    }
+}
+
+// Generalized Button Handler Function (Returns a flag)
+bool handleButton(int index, int pin) {
+    bool reading = digitalRead(pin);
+    bool flag = false;
+    
+    // Debounce Logic
+    if (reading != lastButtonState[index]) {
+        lastDebounceTime[index] = millis();
+    }
+    if ((millis() - lastDebounceTime[index]) > debounceDelay) {
+        if (reading != buttonState[index]) {
+            buttonState[index] = reading;
+            if (buttonState[index] == LOW) {
+                flag = true; // Button Pressed
+            }
+        }
+    }
+    lastButtonState[index] = reading;
+    return flag;
+}
+
+// Generalized Counter Button Handler (Pass by reference)
+void handleCounterButton(int index, int pin, int &counter) {
+    bool reading = digitalRead(pin);
+    
+    // Debounce Logic
+    if (reading != lastButtonState[index]) {
+        lastDebounceTime[index] = millis();
+    }
+    if ((millis() - lastDebounceTime[index]) > debounceDelay) {
+        if (reading != buttonState[index]) {
+            buttonState[index] = reading;
+            if (buttonState[index] == LOW) {
+                counter = (counter + 1) % 10; // Increment Counter
+            }
+        }
+    }
+    lastButtonState[index] = reading;
+}
